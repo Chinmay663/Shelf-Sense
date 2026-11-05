@@ -2,7 +2,12 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const cron = require('node-cron');
-require('dotenv').config();
+
+const path = require('path');
+
+require('dotenv').config({
+    path: path.resolve(__dirname, '.env')
+});
 
 const productRoutes = require('./routes/products');
 const categoryRoutes = require('./routes/categories');
@@ -25,10 +30,25 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/quick-items', quickItemRoutes);
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/shelf-sense')
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+const startServer = async () => {
+    try {
+        if (!process.env.MONGODB_URI) {
+            throw new Error('MONGODB_URI is missing. Check your .env file.');
+        }
 
+        await mongoose.connect(process.env.MONGODB_URI);
+
+        console.log('MongoDB Atlas connected successfully');
+
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+
+    } catch (error) {
+        console.error('MongoDB connection error:', error.message);
+        process.exit(1);
+    }
+};
 // Schedule low stock check every day at 9 AM
 cron.schedule('0 9 * * *', () => {
   console.log('Running scheduled low stock check...');
@@ -36,6 +56,5 @@ cron.schedule('0 9 * * *', () => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+startServer();
+
